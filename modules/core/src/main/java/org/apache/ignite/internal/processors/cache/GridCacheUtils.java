@@ -1602,6 +1602,9 @@ public class GridCacheUtils {
                 else
                     throw e;
             }
+            catch (RuntimeException e) {
+                throw e;
+            }
             catch (Exception e) {
                 throw new IgniteCheckedException(e);
             }
