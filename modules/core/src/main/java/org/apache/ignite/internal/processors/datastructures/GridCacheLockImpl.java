@@ -514,11 +514,10 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
         /**
          * This method is used for synchronizing the reentrant lock state across all nodes.
          */
-        protected boolean compareAndSetGlobalState(final int expVal, final int newVal,
+        boolean compareAndSetGlobalState(final int expVal, final int newVal,
             final Thread newThread, final boolean bargingProhibited) {
             try {
-                return CU.outTx(
-                    retryTopologySafe(new Callable<Boolean>() {
+                return retryTopologySafe(new Callable<Boolean>() {
                         @Override public Boolean call() throws Exception {
                             try (GridNearTxLocal tx = CU.txStartInternal(ctx, lockView, PESSIMISTIC, REPEATABLE_READ)) {
                                 GridCacheLockState val = lockView.get(key);
@@ -592,9 +591,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
                                 throw e;
                             }
                         }
-                    }),
-                    ctx
-                );
+                    });
             }
             catch (IgniteCheckedException e) {
                 throw U.convertException(e);
@@ -606,12 +603,11 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
          *
          * @param cancelled true if acquire attempt is cancelled, false if acquire attempt should be registered.
          */
-        protected boolean synchronizeQueue(final boolean cancelled, final Thread thread) {
+        boolean synchronizeQueue(final boolean cancelled, final Thread thread) {
             final AtomicBoolean interrupted = new AtomicBoolean(false);
 
             try {
-                return CU.outTx(
-                    retryTopologySafe(new Callable<Boolean>() {
+                return retryTopologySafe(new Callable<Boolean>() {
                         @Override public Boolean call() throws Exception {
                             try (GridNearTxLocal tx = CU.txStartInternal(ctx, lockView, PESSIMISTIC, REPEATABLE_READ)) {
                                 GridCacheLockState val = lockView.get(key);
@@ -684,9 +680,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
                                 throw e;
                             }
                         }
-                    }),
-                    ctx
-                );
+                    });
             }
             catch (IgniteCheckedException e) {
                 throw U.convertException(e);
@@ -702,13 +696,14 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
          * Sets the global state across all nodes after releasing the reentrant lock.
          *
          * @param newVal New state.
-         * @param lastCondition Id of the condition await is called.
+         * @param lastCond Id of the condition await is called.
          * @param outgoingSignals Map containing signal calls on this node since the last acquisition of the lock.
          */
-        protected boolean setGlobalState(final int newVal, @Nullable final String lastCondition, final Map<String, Integer> outgoingSignals) {
+        protected boolean setGlobalState(final int newVal,
+            @Nullable final String lastCond,
+            final Map<String, Integer> outgoingSignals) {
             try {
-                return CU.outTx(
-                    retryTopologySafe(new Callable<Boolean>() {
+                return retryTopologySafe(new Callable<Boolean>() {
                         @Override public Boolean call() throws Exception {
                             try (GridNearTxLocal tx = CU.txStartInternal(ctx, lockView, PESSIMISTIC, REPEATABLE_READ)) {
                                 GridCacheLockState val = lockView.get(key);
@@ -749,9 +744,8 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
 
                                         if (list != null && !list.isEmpty()) {
                                             // Check if signalAll was called.
-                                            if (cnt == 0) {
+                                            if (cnt == 0)
                                                 cnt = list.size();
-                                            }
 
                                             // Remove from global condition queue.
                                             for (int i = 0; i < cnt; i++) {
@@ -785,20 +779,20 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
 
                                 // Check if this release is called after condition.await() call;
                                 // If true, add this node to the global waiting queue.
-                                if (lastCondition != null) {
+                                if (lastCond != null) {
                                     LinkedList<UUID> queue;
 
                                     //noinspection IfMayBeConditional
-                                    if (!condMap.containsKey(lastCondition))
+                                    if (!condMap.containsKey(lastCond))
                                         // New condition object.
                                         queue = new LinkedList<>();
                                     else
                                         // Existing condition object.
-                                        queue = condMap.get(lastCondition);
+                                        queue = condMap.get(lastCond);
 
                                     queue.add(thisNode);
 
-                                    condMap.put(lastCondition, queue);
+                                    condMap.put(lastCond, queue);
                                 }
 
                                 val.setConditionMap(condMap);
@@ -822,16 +816,14 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
                                 throw e;
                             }
                         }
-                    }),
-                    ctx
-                );
+                    });
             }
             catch (IgniteCheckedException e) {
                 throw U.convertException(e);
             }
         }
 
-        protected synchronized boolean checkIncomingSignals(GridCacheLockState state) {
+        synchronized boolean checkIncomingSignals(GridCacheLockState state) {
             if (state.getSignals() == null)
                 return false;
 
@@ -880,16 +872,16 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
             private final String name;
 
             /** */
-            private final AbstractQueuedSynchronizer.ConditionObject object;
+            private final AbstractQueuedSynchronizer.ConditionObject obj;
 
             /**
              * @param name Condition name.
-             * @param object Condition object.
+             * @param obj Condition object.
              */
-            protected IgniteConditionObject(String name, ConditionObject object) {
+            protected IgniteConditionObject(String name, ConditionObject obj) {
                 this.name = name;
 
-                this.object = object;
+                this.obj = obj;
             }
 
             /**
@@ -911,7 +903,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
 
                     lastCondition = name;
 
-                    object.await();
+                    obj.await();
 
                     sync.validate(true);
                 }
@@ -933,7 +925,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
 
                     lastCondition = name;
 
-                    object.awaitUninterruptibly();
+                    obj.awaitUninterruptibly();
 
                     sync.validate(false);
                 }
@@ -952,7 +944,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
 
                     lastCondition = name;
 
-                    long result =  object.awaitNanos(nanosTimeout);
+                    long result =  obj.awaitNanos(nanosTimeout);
 
                     sync.validate(true);
 
@@ -976,7 +968,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
 
                     lastCondition = name;
 
-                    boolean result = object.await(time, unit);
+                    boolean result = obj.await(time, unit);
 
                     sync.validate(true);
 
@@ -1000,7 +992,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
 
                     lastCondition = name;
 
-                    boolean result = object.awaitUntil(deadline);
+                    boolean result = obj.awaitUntil(deadline);
 
                     sync.validate(true);
 
@@ -1085,8 +1077,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
     private void initializeReentrantLock() throws IgniteCheckedException {
         if (initGuard.compareAndSet(false, true)) {
             try {
-                sync = CU.outTx(
-                    retryTopologySafe(new Callable<Sync>() {
+                sync = retryTopologySafe(new Callable<Sync>() {
                         @Override public Sync call() throws Exception {
                             try (GridNearTxLocal tx = CU.txStartInternal(ctx, lockView, PESSIMISTIC, REPEATABLE_READ)) {
                                 GridCacheLockState val = lockView.get(key);
@@ -1103,9 +1094,7 @@ public final class GridCacheLockImpl implements GridCacheLockEx, Externalizable 
                                 return new Sync(val);
                             }
                         }
-                    }),
-                    ctx
-                );
+                    });
 
                 if (log.isDebugEnabled())
                     log.debug("Initialized internal sync structure: " + sync);
