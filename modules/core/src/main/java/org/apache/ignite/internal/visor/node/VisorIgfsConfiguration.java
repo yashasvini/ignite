@@ -25,7 +25,6 @@ import java.util.Map;
 import org.apache.ignite.configuration.FileSystemConfiguration;
 import org.apache.ignite.igfs.IgfsIpcEndpointConfiguration;
 import org.apache.ignite.igfs.IgfsMode;
-import org.apache.ignite.igfs.secondary.IgfsSecondaryFileSystem;
 import org.apache.ignite.internal.LessNamingBean;
 import org.apache.ignite.internal.util.typedef.internal.S;
 import org.jetbrains.annotations.Nullable;
@@ -131,11 +130,11 @@ public class VisorIgfsConfiguration implements Serializable, LessNamingBean {
         VisorIgfsConfiguration cfg = new VisorIgfsConfiguration();
 
         cfg.name = igfs.getName();
-        cfg.metaCacheName = igfs.getMetaCacheName();
-        cfg.dataCacheName = igfs.getDataCacheName();
+        cfg.metaCacheName = igfs.getMetaCacheConfiguration().getName();
+        cfg.dataCacheName = igfs.getDataCacheConfiguration().getName();
         cfg.blockSize = igfs.getBlockSize();
         cfg.prefetchBlocks = igfs.getPrefetchBlocks();
-        cfg.streamBufSize = igfs.getStreamBufferSize();
+        cfg.streamBufSize = igfs.getBufferSize();
         cfg.perNodeBatchSize = igfs.getPerNodeBatchSize();
         cfg.perNodeParallelBatchCnt = igfs.getPerNodeParallelBatchCount();
 

@@ -152,6 +152,20 @@
                                                             </xs:attribute>
                                                         </xs:complexType>
                                                     </xs:element>
+                                                    <xs:element name="equalityComparer" minOccurs="0">
+                                                        <xs:annotation>
+                                                            <xs:documentation>
+                                                                Equality comparer to compute hash codes and compare objects in IBinaryObject form.
+                                                            </xs:documentation>
+                                                        </xs:annotation>
+                                                        <xs:complexType>
+                                                            <xs:attribute name="type" type="xs:string" use="required">
+                                                                <xs:annotation>
+                                                                    <xs:documentation>Assembly-qualified type name.</xs:documentation>
+                                                                </xs:annotation>
+                                                            </xs:attribute>
+                                                        </xs:complexType>
+                                                    </xs:element>
                                                 </xs:all>
                                                 <xs:attribute name="typeName" type="xs:string">
                                                     <xs:annotation>
@@ -297,6 +311,11 @@
                                                                                             <xs:documentation>Java field type name.</xs:documentation>
                                                                                         </xs:annotation>
                                                                                     </xs:attribute>
+                                                                                    <xs:attribute name="isKeyField" type="xs:boolean">
+                                                                                        <xs:annotation>
+                                                                                            <xs:documentation>Indicates whether this field belongs to the cache key.</xs:documentation>
+                                                                                        </xs:annotation>
+                                                                                    </xs:attribute>
                                                                                 </xs:complexType>
                                                                             </xs:element>
                                                                         </xs:sequence>
@@ -399,6 +418,13 @@
                                                                 <xs:annotation>
                                                                     <xs:documentation>
                                                                         .NET value type.
+                                                                    </xs:documentation>
+                                                                </xs:annotation>
+                                                            </xs:attribute>
+                                                            <xs:attribute name="tableName" type="xs:string">
+                                                                <xs:annotation>
+                                                                    <xs:documentation>
+                                                                        SQL table name. When not set, value type name is used.
                                                                     </xs:documentation>
                                                                 </xs:annotation>
                                                             </xs:attribute>
@@ -511,6 +537,27 @@
                                                         <xs:documentation>Assembly-qualified type name.</xs:documentation>
                                                     </xs:annotation>
                                                 </xs:attribute>
+                                            </xs:complexType>
+                                        </xs:element>
+                                        <xs:element name="pluginConfigurations" minOccurs="0">
+                                            <xs:annotation>
+                                                <xs:documentation>Cache plugin configurations.</xs:documentation>
+                                            </xs:annotation>
+                                            <xs:complexType>
+                                                <xs:sequence>
+                                                    <xs:element name="iCachePluginConfiguration" maxOccurs="unbounded">
+                                                        <xs:annotation>
+                                                            <xs:documentation>Cache plugin configuration.</xs:documentation>
+                                                        </xs:annotation>
+                                                        <xs:complexType>
+                                                            <xs:attribute name="type" type="xs:string" use="required">
+                                                                <xs:annotation>
+                                                                    <xs:documentation>Assembly-qualified type name.</xs:documentation>
+                                                                </xs:annotation>
+                                                            </xs:attribute>
+                                                        </xs:complexType>
+                                                    </xs:element>
+                                                </xs:sequence>
                                             </xs:complexType>
                                         </xs:element>
                                     </xs:all>
@@ -1161,8 +1208,34 @@
                         </xs:attribute>
                     </xs:complexType>
                 </xs:element>
+                <xs:element name="pluginConfigurations" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>Plugin configurations.</xs:documentation>
+                    </xs:annotation>
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="iPluginConfiguration" maxOccurs="unbounded">
+                                <xs:annotation>
+                                    <xs:documentation>Plugin configuration.</xs:documentation>
+                                </xs:annotation>
+                                <xs:complexType>
+                                    <xs:attribute name="type" type="xs:string" use="required">
+                                        <xs:annotation>
+                                            <xs:documentation>Assembly-qualified type name.</xs:documentation>
+                                        </xs:annotation>
+                                    </xs:attribute>
+                                    <xs:attribute name="pluginConfigurationClosureFactoryId" type="xs:int">
+                                        <xs:annotation>
+                                            <xs:documentation>Id to locate PlatformPluginConfigurationClosureFactory on Java side.</xs:documentation>
+                                        </xs:annotation>
+                                    </xs:attribute>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
             </xs:all>
-            <xs:attribute name="gridName" type="xs:string">
+            <xs:attribute name="igniteInstanceName" type="xs:string">
                 <xs:annotation>
                     <xs:documentation>Local Ignite instance name to be used with Ignition.GetIgnite.</xs:documentation>
                 </xs:annotation>
