@@ -1402,8 +1402,14 @@ public abstract class IgniteTxAdapter extends GridMetadataAwareAdapter implement
 
             final boolean keepBinary = txEntry.keepBinary();
 
-            CacheObject cacheVal = txEntry.hasValue() ? txEntry.value() :
-                txEntry.cached().innerGet(
+            CacheObject cacheVal;
+
+            if (txEntry.hasOldValue())
+                cacheVal = txEntry.oldValue();
+            else if (txEntry.hasValue())
+                cacheVal = txEntry.value();
+            else {
+                cacheVal = txEntry.cached().innerGet(
                     null,
                     this,
                     /*swap*/false,
@@ -1412,10 +1418,11 @@ public abstract class IgniteTxAdapter extends GridMetadataAwareAdapter implement
                     /*event*/recordEvt,
                     /*temporary*/true,
                     /*subjId*/subjId,
-                    /**closure name */recordEvt ? F.first(txEntry.entryProcessors()).get1() : null,
+                    /*closure name */recordEvt ? F.first(txEntry.entryProcessors()).get1() : null,
                     resolveTaskName(),
                     null,
                     keepBinary);
+            }
 
             boolean modified = false;
 

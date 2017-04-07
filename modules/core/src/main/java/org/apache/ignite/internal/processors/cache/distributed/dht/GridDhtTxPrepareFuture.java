@@ -64,7 +64,6 @@ import org.apache.ignite.internal.processors.timeout.GridTimeoutObjectAdapter;
 import org.apache.ignite.internal.transactions.IgniteTxHeuristicCheckedException;
 import org.apache.ignite.internal.transactions.IgniteTxOptimisticCheckedException;
 import org.apache.ignite.internal.transactions.IgniteTxTimeoutCheckedException;
-import org.apache.ignite.internal.util.F0;
 import org.apache.ignite.internal.util.GridLeanSet;
 import org.apache.ignite.internal.util.future.GridCompoundFuture;
 import org.apache.ignite.internal.util.future.GridFutureAdapter;
@@ -478,7 +477,8 @@ public final class GridDhtTxPrepareFuture extends GridCompoundFuture<IgniteInter
                 }
 
                 // Send old value in case if rebalancing is not finished.
-                final boolean sndOldVal = !cacheCtx.isLocal() && !cacheCtx.topology().rebalanceFinished(tx.topologyVersion());
+                final boolean sndOldVal = !cacheCtx.isLocal() &&
+                    !cacheCtx.topology().rebalanceFinished(tx.topologyVersion());
 
                 if (sndOldVal) {
                     if (oldVal == null && !readOld) {
@@ -497,11 +497,10 @@ public final class GridDhtTxPrepareFuture extends GridCompoundFuture<IgniteInter
                             /*keepBinary*/true);
                     }
 
-                    if (oldVal != null) {
+                    if (oldVal != null)
                         oldVal.prepareMarshal(cacheCtx.cacheObjectContext());
 
-                        txEntry.oldValue(oldVal, true);
-                    }
+                    txEntry.oldValue(oldVal);
                 }
             }
             catch (IgniteCheckedException e) {
@@ -1527,21 +1526,6 @@ public final class GridDhtTxPrepareFuture extends GridCompoundFuture<IgniteInter
         Map<UUID, GridDistributedTxMapping> globalMap
     ) {
         GridDistributedTxMapping global = globalMap.get(n.id());
-
-        if (!F.isEmpty(entry.entryProcessors())) {
-            GridDhtPartitionState state = entry.context().topology().partitionState(n.id(),
-                entry.cached().partition());
-
-            if (state != GridDhtPartitionState.OWNING && state != GridDhtPartitionState.EVICTED) {
-                T2<GridCacheOperation, CacheObject> procVal = entry.entryProcessorCalculatedValue();
-
-                assert procVal != null : entry;
-
-                entry.op(procVal.get1());
-                entry.value(procVal.get2(), true, false);
-                entry.entryProcessors(null);
-            }
-        }
 
         if (global == null)
             globalMap.put(n.id(), global = new GridDistributedTxMapping(n));
