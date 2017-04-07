@@ -1295,4 +1295,26 @@ public abstract class GridCommonAbstractTest extends GridAbstractTest {
             .setEnforceJoinOrder(qry.isEnforceJoinOrder()))
             .getAll().get(0).get(0);
     }
+
+    /**
+     * @param expData Expected cache data.
+     * @param cacheName Cache name.
+     */
+    protected final void checkCacheData(Map<?, ?> expData, String cacheName) {
+        assert !expData.isEmpty();
+
+        List<Ignite> nodes = G.allGrids();
+
+        assertFalse(nodes.isEmpty());
+
+        for (Ignite node : nodes) {
+            IgniteCache<Object, Object> cache = node.cache(cacheName);
+
+            for (Map.Entry<?, ?> e : expData.entrySet()) {
+                assertEquals("Invalid value [key=" + e.getKey() + ", node=" + node.name() + ']',
+                    e.getValue(),
+                    cache.get(e.getKey()));
+            }
+        }
+    }
 }
