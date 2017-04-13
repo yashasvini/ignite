@@ -27,7 +27,7 @@ import org.apache.ignite.internal.IgniteInternalFuture;
 import org.apache.ignite.internal.TestRecordingCommunicationSpi;
 import org.apache.ignite.internal.managers.communication.GridIoMessage;
 import org.apache.ignite.internal.processors.cache.distributed.dht.GridDhtTxPrepareResponse;
-import org.apache.ignite.internal.processors.cache.distributed.dht.preloader.GridDhtPartitionSupplyMessageV2;
+import org.apache.ignite.internal.processors.cache.distributed.dht.preloader.GridDhtPartitionSupplyMessage;
 import org.apache.ignite.internal.util.typedef.F;
 import org.apache.ignite.internal.util.typedef.internal.CU;
 import org.apache.ignite.internal.util.typedef.internal.U;
@@ -127,8 +127,8 @@ public class IgniteOnePhaseCommitInvokeTest extends GridCommonAbstractTest {
             @Override public boolean apply(GridIoMessage msg0) {
                 Message msg = msg0.message();
 
-                return msg instanceof GridDhtPartitionSupplyMessageV2 &&
-                    ((GridDhtPartitionSupplyMessageV2) msg).cacheId() == CU.cacheId(null);
+                return msg instanceof GridDhtPartitionSupplyMessage &&
+                    ((GridDhtPartitionSupplyMessage) msg).cacheId() == CU.cacheId(null);
             }
         });
 

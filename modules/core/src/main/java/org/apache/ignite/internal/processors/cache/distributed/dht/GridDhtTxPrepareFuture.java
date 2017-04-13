@@ -1527,21 +1527,6 @@ public final class GridDhtTxPrepareFuture extends GridCompoundFuture<IgniteInter
     ) {
         GridDistributedTxMapping global = globalMap.get(n.id());
 
-        if (!F.isEmpty(entry.entryProcessors())) {
-            GridDhtPartitionState state = entry.context().topology().partitionState(n.id(),
-                entry.cached().partition());
-
-            if (state != GridDhtPartitionState.OWNING && state != GridDhtPartitionState.EVICTED) {
-                T2<GridCacheOperation, CacheObject> procVal = entry.entryProcessorCalculatedValue();
-
-                assert procVal != null : entry;
-
-                entry.op(procVal.get1());
-                entry.value(procVal.get2(), true, false);
-                entry.entryProcessors(null);
-            }
-        }
-
         if (global == null)
             globalMap.put(n.id(), global = new GridDistributedTxMapping(n));
 
