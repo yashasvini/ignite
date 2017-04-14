@@ -2040,7 +2040,9 @@ public abstract class GridAbstractTest extends TestCase {
             AffinityTopologyVersion exchVer = ctx.cache().context().exchange().readyAffinityVersion();
 
             if (! topVer.equals(exchVer)) {
-                info("topology version mismatch: node "  + g.name() + " " + exchVer + ", " + topVer);
+                info("Topology version mismatch [node="  + g.name() +
+                    ", exchVer=" + exchVer +
+                    ", topVer=" + topVer + ']');
 
                 GridTestUtils.waitForCondition(new GridAbsPredicate() {
                     @Override public boolean apply() {

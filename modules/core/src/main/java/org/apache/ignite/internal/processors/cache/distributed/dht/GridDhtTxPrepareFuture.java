@@ -372,8 +372,6 @@ public final class GridDhtTxPrepareFuture extends GridCacheCompoundFuture<Ignite
                     tx.nearOnOriginatingNode() || tx.hasInterceptor();
 
                 if (readOld) {
-                    cached.unswap(retVal);
-
                     boolean readThrough = !txEntry.skipStore() &&
                         (txEntry.op() == TRANSFORM || ((retVal || hasFilters) && cacheCtx.config().isLoadPreviousValue()));
 
