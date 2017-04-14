@@ -70,7 +70,7 @@ public class IgniteCrossCacheTxSelfTest extends GridCommonAbstractTest {
      * @return Node count for this test.
      */
     private int nodeCount() {
-        return 4;
+        return 2;
     }
 
     /**

@@ -441,7 +441,7 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
             timeout,
             m.reads(),
             m.writes(),
-            m.near(),
+            m.hasNearCacheEntries(),
             txMapping.transactionNodes(),
             m.last(),
             tx.onePhaseCommit(),
@@ -459,9 +459,9 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
         }
 
         // Must lock near entries separately.
-        if (m.near()) {
+        if (m.hasNearCacheEntries()) {
             try {
-                tx.optimisticLockEntries(m.entries());
+                tx.optimisticLockEntries(m.nearCacheEntries());
 
                 tx.userPrepare();
             }
@@ -580,9 +580,6 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
                 else if (entry.context().isColocated())
                     tx.colocatedLocallyMapped(true);
             }
-
-            // Initialize near flag right away.
-            cur.near(cacheCtx.isNear());
 
             cur.clientFirst(!topLocked && cctx.kernalContext().clientNode());
 

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -2862,8 +2863,6 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter implements AutoClosea
                 if (m == null) {
                     mappings.put(m = new GridDistributedTxMapping(primary));
 
-                    m.near(map.near());
-
                     if (map.explicitLock())
                         m.markExplicitLock();
                 }
@@ -2888,8 +2887,6 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter implements AutoClosea
         GridDistributedTxMapping m = new GridDistributedTxMapping(n);
 
         mappings.put(m);
-
-        m.near(map.near());
 
         if (map.explicitLock())
             m.markExplicitLock();
@@ -2933,13 +2930,17 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter implements AutoClosea
         Collection<GridCacheVersion> committedVers,
         Collection<GridCacheVersion> rolledbackVers)
     {
+        List<IgniteTxEntry> nearEntries = mapping.nearCacheEntries();
+
+        assert nearEntries != null;
+
         // Process writes, then reads.
-        for (IgniteTxEntry txEntry : mapping.entries()) {
+        for (IgniteTxEntry txEntry : nearEntries) {
             if (CU.writes().apply(txEntry))
                 readyNearLock(txEntry, mapping.dhtVersion(), pendingVers, committedVers, rolledbackVers);
         }
 
-        for (IgniteTxEntry txEntry : mapping.entries()) {
+        for (IgniteTxEntry txEntry : nearEntries) {
             if (CU.reads().apply(txEntry))
                 readyNearLock(txEntry, mapping.dhtVersion(), pendingVers, committedVers, rolledbackVers);
         }
@@ -2952,7 +2953,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter implements AutoClosea
      * @param committedVers Committed versions.
      * @param rolledbackVers Rolled back versions.
      */
-    void readyNearLock(IgniteTxEntry txEntry,
+    private void readyNearLock(IgniteTxEntry txEntry,
         GridCacheVersion dhtVer,
         Collection<GridCacheVersion> pendingVers,
         Collection<GridCacheVersion> committedVers,

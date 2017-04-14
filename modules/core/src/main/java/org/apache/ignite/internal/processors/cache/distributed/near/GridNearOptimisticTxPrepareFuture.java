@@ -382,7 +382,8 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
 
         tx.transactionNodes(txMapping.transactionNodes());
 
-        checkOnePhase(txMapping);
+        if (!mapping.hasNearCacheEntries())
+            checkOnePhase(txMapping);
 
         proceedPrepare(mapping, null);
     }
@@ -409,10 +410,15 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
 
         Queue<GridDistributedTxMapping> mappings = new ArrayDeque<>();
 
+        boolean hasNearCache = false;
+
         for (IgniteTxEntry write : writes) {
             write.clearEntryReadVersion();
 
             GridDistributedTxMapping updated = map(write, topVer, cur, topLocked, remap);
+
+            if (updated.hasNearCacheEntries())
+                hasNearCache = true;
 
             if (cur != updated) {
                 mappings.offer(updated);
@@ -451,7 +457,8 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
 
         tx.transactionNodes(txMapping.transactionNodes());
 
-        checkOnePhase(txMapping);
+        if (!hasNearCache)
+            checkOnePhase(txMapping);
 
         proceedPrepare(mappings);
     }
@@ -497,7 +504,7 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
                     timeout,
                     null,
                     m.writes(),
-                    m.near(),
+                    m.hasNearCacheEntries(),
                     txMapping.transactionNodes(),
                     m.last(),
                     tx.onePhaseCommit(),
@@ -515,9 +522,9 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
                 }
 
                 // Must lock near entries separately.
-                if (m.near()) {
+                if (m.hasNearCacheEntries()) {
                     try {
-                        tx.optimisticLockEntries(req.writes());
+                        tx.optimisticLockEntries(m.nearCacheEntries());
 
                         tx.userPrepare();
                     }
@@ -644,13 +651,10 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
             }
         }
 
-        if (cur == null || !cur.primary().id().equals(primary.id()) || cur.near() != cacheCtx.isNear()) {
+        if (cur == null || !cur.primary().id().equals(primary.id())) {
             boolean clientFirst = cur == null && !topLocked && cctx.kernalContext().clientNode();
 
             cur = new GridDistributedTxMapping(primary);
-
-            // Initialize near flag right away.
-            cur.near(cacheCtx.isNear());
 
             cur.clientFirst(clientFirst);
         }

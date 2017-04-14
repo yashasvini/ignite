@@ -28,6 +28,8 @@ import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.cache.CacheInterceptor;
 import org.apache.ignite.cache.CacheWriteSynchronizationMode;
 import org.apache.ignite.internal.cluster.ClusterTopologyServerNotFoundException;
+import org.apache.ignite.internal.managers.discovery.DiscoCache;
+import org.apache.ignite.internal.processors.affinity.AffinityTopologyVersion;
 import org.apache.ignite.internal.processors.cache.GridCacheContext;
 import org.apache.ignite.internal.processors.cache.GridCacheSharedContext;
 import org.apache.ignite.internal.processors.cache.KeyCacheObject;
@@ -471,6 +473,22 @@ public class IgniteTxStateImpl extends IgniteTxLocalStateAdapter {
     /** {@inheritDoc} */
     @Override public IgniteTxEntry singleWrite() {
         return writeView != null && writeView.size() == 1 ? F.firstValue(writeView) : null;
+    }
+
+    /** {@inheritDoc} */
+    @Override public boolean hasNearCacheConfigured(GridCacheSharedContext ctx, AffinityTopologyVersion topVer) {
+        DiscoCache discoCache = ctx.discovery().discoCache(topVer);
+
+        assert discoCache != null : topVer;
+
+        for (int i = 0; i < activeCacheIds.size(); i++) {
+            int cacheId = (int) activeCacheIds.get(i);
+
+            if (discoCache.hasNearCache(cacheId))
+                return true;
+        }
+
+        return false;
     }
 
     /** {@inheritDoc} */

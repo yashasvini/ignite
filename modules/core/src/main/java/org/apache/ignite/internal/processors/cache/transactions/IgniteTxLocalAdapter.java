@@ -225,7 +225,7 @@ public abstract class IgniteTxLocalAdapter extends IgniteTxAdapter implements Ig
     }
 
     /** {@inheritDoc} */
-    @Override public IgniteTxState txState() {
+    @Override public IgniteTxLocalState txState() {
         return txState;
     }
 

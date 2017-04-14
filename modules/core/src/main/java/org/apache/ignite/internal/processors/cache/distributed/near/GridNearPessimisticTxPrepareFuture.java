@@ -184,11 +184,13 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
      *
      */
     private void preparePessimistic() {
-        Map<IgniteBiTuple<ClusterNode, Boolean>, GridDistributedTxMapping> mappings = new HashMap<>();
+        Map<UUID, GridDistributedTxMapping> mappings = new HashMap<>();
 
         AffinityTopologyVersion topVer = tx.topologyVersion();
 
         GridDhtTxMapping txMapping = new GridDhtTxMapping();
+
+        boolean hasNearCache = false;
 
         for (IgniteTxEntry txEntry : tx.allEntries()) {
             txEntry.clearEntryReadVersion();
@@ -205,20 +207,19 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
             else
                 nodes = cacheCtx.affinity().nodesByKey(txEntry.key(), topVer);
 
-            ClusterNode primary = F.first(nodes);
+            assert !nodes.isEmpty();
 
-            boolean near = cacheCtx.isNear();
+            ClusterNode primary = nodes.get(0);
 
-            IgniteBiTuple<ClusterNode, Boolean> key = F.t(primary, near);
+            if (cacheCtx.isNear())
+                hasNearCache = true;
 
-            GridDistributedTxMapping nodeMapping = mappings.get(key);
+            GridDistributedTxMapping nodeMapping = mappings.get(primary.id());
 
             if (nodeMapping == null) {
                 nodeMapping = new GridDistributedTxMapping(primary);
 
-                nodeMapping.near(cacheCtx.isNear());
-
-                mappings.put(key, nodeMapping);
+                mappings.put(primary.id(), nodeMapping);
             }
 
             txEntry.nodeId(primary.id());
@@ -230,7 +231,8 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
 
         tx.transactionNodes(txMapping.transactionNodes());
 
-        checkOnePhase(txMapping);
+        if (!hasNearCache)
+            checkOnePhase(txMapping);
 
         long timeout = tx.remainingTime();
 
@@ -252,7 +254,7 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
                 timeout,
                 m.reads(),
                 m.writes(),
-                m.near(),
+                m.hasNearCacheEntries(),
                 txMapping.transactionNodes(),
                 true,
                 tx.onePhaseCommit(),

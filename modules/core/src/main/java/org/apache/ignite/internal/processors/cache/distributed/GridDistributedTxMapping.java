@@ -17,9 +17,11 @@
 
 package org.apache.ignite.internal.processors.cache.distributed;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxEntry;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxKey;
@@ -52,11 +54,11 @@ public class GridDistributedTxMapping {
     /** {@code True} if this is last mapping for node. */
     private boolean last;
 
-    /** {@code True} if mapping is for near caches, {@code false} otherwise. */
-    private boolean near;
-
     /** {@code True} if this is first mapping for optimistic tx on client node. */
     private boolean clientFirst;
+
+    /** */
+    private boolean hasNear;
 
     /**
      * @param primary Primary node.
@@ -95,18 +97,8 @@ public class GridDistributedTxMapping {
         this.clientFirst = clientFirst;
     }
 
-    /**
-     * @return {@code True} if mapping is for near caches, {@code false} otherwise.
-     */
-    public boolean near() {
-        return near;
-    }
-
-    /**
-     * @param near {@code True} if mapping is for near caches, {@code false} otherwise.
-     */
-    public void near(boolean near) {
-        this.near = near;
+    public boolean hasNearCacheEntries() {
+        return hasNear;
     }
 
     /**
@@ -121,6 +113,22 @@ public class GridDistributedTxMapping {
      */
     public Collection<IgniteTxEntry> entries() {
         return entries;
+    }
+
+    /**
+     * @return Near cache entries.
+     */
+    @Nullable public List<IgniteTxEntry> nearCacheEntries() {
+        assert hasNear;
+
+        List<IgniteTxEntry> nearCacheEntries = new ArrayList<>();
+
+        for (IgniteTxEntry e : entries) {
+            if (e.context().isNear())
+                nearCacheEntries.add(e);
+        }
+
+        return nearCacheEntries;
     }
 
     /**
@@ -173,6 +181,9 @@ public class GridDistributedTxMapping {
      * @param entry Adds entry.
      */
     public void add(IgniteTxEntry entry) {
+        if (entry.context().isNear())
+            hasNear = true;
+
         entries.add(entry);
     }
 

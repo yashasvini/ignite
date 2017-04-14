@@ -172,7 +172,7 @@ public abstract class GridNearTxPrepareFutureAdapter extends
 
             Collection<UUID> backups = entry.getValue();
 
-            if (backups.size() <= 1)
+            if (backups.size() <= 1 && !tx.txState().hasNearCacheConfigured(cctx, tx.topologyVersion()))
                 tx.onePhaseCommit(true);
         }
     }
@@ -261,7 +261,7 @@ public abstract class GridNearTxPrepareFutureAdapter extends
             if (map != null)
                 map.dhtVersion(res.dhtVersion(), writeVer);
 
-            if (m.near())
+            if (m.hasNearCacheEntries())
                 tx.readyNearLocks(m, res.pending(), res.committedVersions(), res.rolledbackVersions());
         }
     }
