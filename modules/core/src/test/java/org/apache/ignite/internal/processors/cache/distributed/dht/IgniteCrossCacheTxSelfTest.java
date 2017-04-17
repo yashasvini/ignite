@@ -40,6 +40,7 @@ import static org.apache.ignite.transactions.TransactionConcurrency.OPTIMISTIC;
 import static org.apache.ignite.transactions.TransactionConcurrency.PESSIMISTIC;
 import static org.apache.ignite.transactions.TransactionIsolation.READ_COMMITTED;
 import static org.apache.ignite.transactions.TransactionIsolation.REPEATABLE_READ;
+import static org.apache.ignite.transactions.TransactionIsolation.SERIALIZABLE;
 
 /**
  * Tests specific combinations of cross-cache transactions.
@@ -70,14 +71,14 @@ public class IgniteCrossCacheTxSelfTest extends GridCommonAbstractTest {
      * @return Node count for this test.
      */
     private int nodeCount() {
-        return 2;
+        return 4;
     }
 
     /**
      * @return {@code True} if near cache should be enabled.
      */
     protected boolean nearEnabled() {
-        return false;
+        return true;
     }
 
     /** {@inheritDoc} */
@@ -134,6 +135,13 @@ public class IgniteCrossCacheTxSelfTest extends GridCommonAbstractTest {
      */
     public void testOptimisticRepeatableRead() throws Exception {
         checkTxsSingleOp(OPTIMISTIC, REPEATABLE_READ);
+    }
+
+    /**
+     * @throws Exception If failed.
+     */
+    public void testOptimisticSerializable() throws Exception {
+        checkTxsSingleOp(OPTIMISTIC, SERIALIZABLE);
     }
 
     /**

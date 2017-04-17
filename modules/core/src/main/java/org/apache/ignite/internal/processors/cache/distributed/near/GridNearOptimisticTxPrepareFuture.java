@@ -180,7 +180,7 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
             if (mini != null) {
                 assert mini.node().id().equals(nodeId);
 
-                mini.onResult(res);
+                mini.onResult(res, true);
             }
             else {
                 if (msgLog.isDebugEnabled()) {
@@ -477,6 +477,60 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
         proceedPrepare(m, mappings);
     }
 
+    private void prepareLocal(GridNearTxPrepareRequest req,
+        final MiniFuture fut,
+        boolean nearTx,
+        final boolean updateMapping) {
+        IgniteInternalFuture<GridNearTxPrepareResponse> prepFut = nearTx ?
+            cctx.tm().txHandler().prepareNearTx(cctx.localNodeId(), req, true) :
+            cctx.tm().txHandler().prepareColocatedTx(tx, req);
+
+        prepFut.listen(new CI1<IgniteInternalFuture<GridNearTxPrepareResponse>>() {
+            @Override public void apply(IgniteInternalFuture<GridNearTxPrepareResponse> prepFut) {
+                try {
+                    fut.onResult(prepFut.get(), updateMapping);
+                }
+                catch (IgniteCheckedException e) {
+                    fut.onResult(e);
+                }
+            }
+        });
+    }
+
+    private GridNearTxPrepareRequest createRequest(long timeout,
+        MiniFuture fut,
+        Collection<IgniteTxEntry> writes) {
+        GridDistributedTxMapping m = fut.mapping();
+
+        GridNearTxPrepareRequest req = new GridNearTxPrepareRequest(
+            futId,
+            tx.topologyVersion(),
+            tx,
+            timeout,
+            null,
+            writes,
+            m.hasNearCacheEntries(),
+            txMapping.transactionNodes(),
+            m.last(),
+            tx.onePhaseCommit(),
+            tx.needReturnValue() && tx.implicit(),
+            tx.implicitSingle(),
+            m.explicitLock(),
+            tx.subjectId(),
+            tx.taskNameHash(),
+            m.clientFirst(),
+            tx.activeCachesDeploymentEnabled());
+
+        for (IgniteTxEntry txEntry : m.entries()) {
+            if (txEntry.op() == TRANSFORM)
+                req.addDhtVersion(txEntry.txKey(), null);
+        }
+
+        req.miniId(fut.futureId());
+
+        return req;
+    }
+
     /**
      * Continues prepare after previous mapping successfully finished.
      *
@@ -497,36 +551,12 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
             long timeout = tx.remainingTime();
 
             if (timeout != -1) {
-                GridNearTxPrepareRequest req = new GridNearTxPrepareRequest(
-                    futId,
-                    tx.topologyVersion(),
-                    tx,
-                    timeout,
-                    null,
-                    m.writes(),
-                    m.hasNearCacheEntries(),
-                    txMapping.transactionNodes(),
-                    m.last(),
-                    tx.onePhaseCommit(),
-                    tx.needReturnValue() && tx.implicit(),
-                    tx.implicitSingle(),
-                    m.explicitLock(),
-                    tx.subjectId(),
-                    tx.taskNameHash(),
-                    m.clientFirst(),
-                    tx.activeCachesDeploymentEnabled());
-
-                for (IgniteTxEntry txEntry : m.entries()) {
-                    if (txEntry.op() == TRANSFORM)
-                        req.addDhtVersion(txEntry.txKey(), null);
-                }
-
                 // Must lock near entries separately.
                 if (m.hasNearCacheEntries()) {
                     try {
                         tx.optimisticLockEntries(m.nearCacheEntries());
 
-                        tx.userPrepare();
+                        cctx.tm().prepareTx(tx);
                     }
                     catch (IgniteCheckedException e) {
                         onError(e, false);
@@ -535,31 +565,17 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
 
                 final MiniFuture fut = new MiniFuture(this, m, ++miniId, mappings);
 
-                req.miniId(fut.futureId());
-
                 add(fut); // Append new future.
 
-                // If this is the primary node for the keys.
                 if (n.isLocal()) {
-                    // At this point, if any new node joined, then it is
-                    // waiting for this transaction to complete, so
-                    // partition reassignments are not possible here.
-                    IgniteInternalFuture<GridNearTxPrepareResponse> prepFut =
-                        cctx.tm().txHandler().prepareTx(n.id(), tx, req);
+                    GridNearTxPrepareRequest req = createRequest(timeout, fut, m.writes());
 
-                    prepFut.listen(new CI1<IgniteInternalFuture<GridNearTxPrepareResponse>>() {
-                        @Override public void apply(IgniteInternalFuture<GridNearTxPrepareResponse> prepFut) {
-                            try {
-                                fut.onResult(prepFut.get());
-                            }
-                            catch (IgniteCheckedException e) {
-                                fut.onResult(e);
-                            }
-                        }
-                    });
+                    prepareLocal(req, fut, m.hasNearCacheEntries(), true);
                 }
                 else {
                     try {
+                        GridNearTxPrepareRequest req = createRequest(timeout, fut, m.writes());
+
                         cctx.io().send(n, req, tx.ioPolicy());
 
                         if (msgLog.isDebugEnabled()) {
@@ -870,7 +886,7 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
          * @param res Result callback.
          */
         @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
-        void onResult(final GridNearTxPrepareResponse res) {
+        void onResult(final GridNearTxPrepareResponse res, boolean updateMapping) {
             if (isDone())
                 return;
 
@@ -912,7 +928,7 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
                             remap();
                     }
                     else {
-                        parent.onPrepareResponse(m, res);
+                        parent.onPrepareResponse(m, res, updateMapping);
 
                         // Proceed prepare before finishing mini future.
                         if (mappings != null)

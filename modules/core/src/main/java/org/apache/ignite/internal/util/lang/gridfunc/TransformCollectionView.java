@@ -71,9 +71,4 @@ public class TransformCollectionView<T1, T2> extends GridSerializableCollection<
     @Override public boolean isEmpty() {
         return F.isEmpty(preds) ? col.isEmpty() : !iterator().hasNext();
     }
-
-    /** {@inheritDoc} */
-    @Override public String toString() {
-        return S.toString(TransformCollectionView.class, this);
-    }
 }

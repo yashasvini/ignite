@@ -58,7 +58,7 @@ public class GridDistributedTxMapping {
     private boolean clientFirst;
 
     /** */
-    private boolean hasNear;
+    private int nearEntries;
 
     /**
      * @param primary Primary node.
@@ -97,8 +97,18 @@ public class GridDistributedTxMapping {
         this.clientFirst = clientFirst;
     }
 
+    /**
+     * @return {@code True} if has colocated cache entries.
+     */
+    public boolean hasColocatedCacheEntries() {
+        return entries.size() > nearEntries;
+    }
+
+    /**
+     * @return {@code True} if has near cache entries.
+     */
     public boolean hasNearCacheEntries() {
-        return hasNear;
+        return nearEntries > 0;
     }
 
     /**
@@ -119,7 +129,9 @@ public class GridDistributedTxMapping {
      * @return Near cache entries.
      */
     @Nullable public List<IgniteTxEntry> nearCacheEntries() {
-        assert hasNear;
+        assert nearEntries > 0;
+
+        // TODO IGNITE-1561.
 
         List<IgniteTxEntry> nearCacheEntries = new ArrayList<>();
 
@@ -167,24 +179,62 @@ public class GridDistributedTxMapping {
      * @return Reads.
      */
     public Collection<IgniteTxEntry> reads() {
-        return F.view(entries, CU.reads());
+        return F.view(entries, CU.READ_FILTER);
     }
 
     /**
      * @return Writes.
      */
     public Collection<IgniteTxEntry> writes() {
-        return F.view(entries, CU.writes());
+        return F.view(entries, CU.WRITE_FILTER);
+    }
+
+    /**
+     * @return Near cache reads.
+     */
+    public Collection<IgniteTxEntry> nearEntriesReads() {
+        assert hasNearCacheEntries();
+
+        return F.view(entries, CU.READ_FILTER_NEAR);
+    }
+
+    /**
+     * @return Near cache writes.
+     */
+    public Collection<IgniteTxEntry> nearEntriesWrites() {
+        assert hasNearCacheEntries();
+
+        return F.view(entries, CU.WRITE_FILTER_NEAR);
+    }
+
+    /**
+     * @return Colocated cache reads.
+     */
+    public Collection<IgniteTxEntry> colocatedEntriesReads() {
+        assert hasColocatedCacheEntries();
+
+        return F.view(entries, CU.READ_FILTER_COLOCATED);
+    }
+
+    /**
+     * @return Colocated cache writes.
+     */
+    public Collection<IgniteTxEntry> colocatedEntriesWrites() {
+        assert hasColocatedCacheEntries();
+
+        return F.view(entries, CU.WRITE_FILTER_COLOCATED);
     }
 
     /**
      * @param entry Adds entry.
      */
     public void add(IgniteTxEntry entry) {
-        if (entry.context().isNear())
-            hasNear = true;
+        boolean add = entries.add(entry);
 
-        entries.add(entry);
+        assert add : entry;
+
+        if (entry.context().isNear())
+            nearEntries++;
     }
 
     /**
