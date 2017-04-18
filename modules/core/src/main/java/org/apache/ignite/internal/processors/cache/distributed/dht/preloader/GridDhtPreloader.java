@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -107,7 +106,7 @@ public class GridDhtPreloader extends GridCachePreloaderAdapter {
     private final ReadWriteLock demandLock = new ReentrantReadWriteLock();
 
     /** */
-    private final ConcurrentHashMap<Integer, GridDhtLocalPartition> partsToEvict = new ConcurrentHashMap<>();
+    private final ConcurrentLinkedDeque8<GridDhtLocalPartition> partsToEvict = new ConcurrentLinkedDeque8<>();
 
     /** */
     private final AtomicInteger partsEvictOwning = new AtomicInteger();
@@ -775,26 +774,28 @@ public class GridDhtPreloader extends GridCachePreloaderAdapter {
 
     /** {@inheritDoc} */
     @Override public void evictPartitionAsync(GridDhtLocalPartition part) {
-        partsToEvict.putIfAbsent(part.id(), part);
+        partsToEvict.add(part);
 
         if (partsEvictOwning.get() == 0 && partsEvictOwning.compareAndSet(0, 1)) {
             cctx.closures().callLocalSafe(new GPC<Boolean>() {
                 @Override public Boolean call() {
                     boolean locked = true;
 
-                    while (locked || !partsToEvict.isEmpty()) {
+                    while (locked || !partsToEvict.isEmptyx()) {
                         if (!locked && !partsEvictOwning.compareAndSet(0, 1))
                             return false;
 
                         try {
-                            for (GridDhtLocalPartition part : partsToEvict.values()) {
+                            GridDhtLocalPartition part = partsToEvict.poll();
+
+                            if (part != null)
                                 try {
                                     part.tryEvict();
 
                                     GridDhtPartitionState state = part.state();
 
                                     if (state == RENTING || ((state == MOVING || state == OWNING) && part.shouldBeRenting()))
-                                        partsToEvict.put(part.id(), part);
+                                        partsToEvict.push(part);
                                 }
                                 catch (Throwable ex) {
                                     if (cctx.kernalContext().isStopping()) {
@@ -809,10 +810,9 @@ public class GridDhtPreloader extends GridCachePreloaderAdapter {
                                     else
                                         LT.error(log, ex, "Partition eviction failed, this can cause grid hang.");
                                 }
-                            }
                         }
                         finally {
-                            if (!partsToEvict.isEmpty())
+                            if (!partsToEvict.isEmptyx())
                                 locked = true;
                             else {
                                 boolean res = partsEvictOwning.compareAndSet(1, 0);
