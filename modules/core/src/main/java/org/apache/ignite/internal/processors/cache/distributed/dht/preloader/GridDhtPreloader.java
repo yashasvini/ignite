@@ -789,6 +789,8 @@ public class GridDhtPreloader extends GridCachePreloaderAdapter {
                         try {
                             for (GridDhtLocalPartition part : partsToEvict.values()) {
                                 try {
+                                    partsToEvict.remove(part.id());
+
                                     part.tryEvict();
 
                                     GridDhtPartitionState state = part.state();
