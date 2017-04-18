@@ -17,11 +17,9 @@
 
 package org.apache.ignite.internal.processors.cache.distributed;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
-import java.util.List;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxEntry;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxKey;
@@ -43,7 +41,6 @@ public class GridDistributedTxMapping {
 
     /** Entries. */
     @GridToStringInclude
-    // TODO: change to List?
     private Collection<IgniteTxEntry> entries;
 
     /** Explicit lock flag. */
@@ -68,23 +65,6 @@ public class GridDistributedTxMapping {
         this.primary = primary;
 
         entries = new LinkedHashSet<>();
-    }
-
-    public GridDistributedTxMapping copy(boolean colocatedEntriesOnly) {
-        assert !colocatedEntriesOnly || hasColocatedCacheEntries();
-
-        GridDistributedTxMapping res = new GridDistributedTxMapping(primary);
-
-        res.clientFirst = clientFirst;
-        res.explicitLock = explicitLock;
-        res.last = last;
-
-        for (IgniteTxEntry entry : entries) {
-            if (!colocatedEntriesOnly || !entry.context().isNear())
-                res.add(entry);
-        }
-
-        return res;
     }
 
     /**
@@ -146,19 +126,10 @@ public class GridDistributedTxMapping {
     /**
      * @return Near cache entries.
      */
-    @Nullable public List<IgniteTxEntry> nearCacheEntries() {
+    @Nullable public Collection<IgniteTxEntry> nearCacheEntries() {
         assert nearEntries > 0;
 
-        // TODO IGNITE-1561.
-
-        List<IgniteTxEntry> nearCacheEntries = new ArrayList<>();
-
-        for (IgniteTxEntry e : entries) {
-            if (e.context().isNear())
-                nearCacheEntries.add(e);
-        }
-
-        return nearCacheEntries;
+        return F.view(entries, CU.FILTER_NEAR_CACHE_ENTRY);
     }
 
     /**

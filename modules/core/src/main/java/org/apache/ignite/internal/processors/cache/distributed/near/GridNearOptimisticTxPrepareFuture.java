@@ -433,7 +433,7 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
 
                 assert !primary.isLocal() || !cctx.kernalContext().clientNode();
 
-                // Minor optimization: on client node can not have mapping for local node.
+                // Minor optimization to not create MappingKey: on client node can not have mapping for local node.
                 Object key =  cctx.kernalContext().clientNode() ? primary.id() :
                     new MappingKey(primary.id(), primary.isLocal() && updated.hasNearCacheEntries());
 
@@ -536,12 +536,12 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
                 // Must lock near entries separately.
                 if (m.hasNearCacheEntries()) {
                     try {
-                        tx.optimisticLockEntries(m.nearCacheEntries());
-
-                        cctx.tm().prepareTx(tx);
+                        cctx.tm().prepareTx(tx, m.nearCacheEntries());
                     }
                     catch (IgniteCheckedException e) {
                         onError(e, false);
+
+                        return;
                     }
                 }
 
@@ -551,11 +551,9 @@ public class GridNearOptimisticTxPrepareFuture extends GridNearOptimisticTxPrepa
 
                 add(fut); // Append new future.
 
-                // If this is the primary node for the keys.
                 if (n.isLocal()) {
-                    // At this point, if any new node joined, then it is
-                    // waiting for this transaction to complete, so
-                    // partition reassignments are not possible here.
+                    assert !(m.hasColocatedCacheEntries() && m.hasNearCacheEntries()) : m;
+
                     IgniteInternalFuture<GridNearTxPrepareResponse> prepFut =
                         m.hasNearCacheEntries() ? cctx.tm().txHandler().prepareNearTx(n.id(), req, true)
                         : cctx.tm().txHandler().prepareColocatedTx(tx, req);

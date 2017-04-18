@@ -18,6 +18,7 @@
 package org.apache.ignite.internal.processors.cache.distributed.near;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -168,7 +169,7 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
         }
 
         try {
-            tx.userPrepare();
+            tx.userPrepare(Collections.<IgniteTxEntry>emptyList());
 
             cctx.mvcc().addFuture(this);
 
@@ -211,7 +212,7 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
             false,
             tx.activeCachesDeploymentEnabled());
 
-        for (IgniteTxEntry txEntry : m.entries()) {
+        for (IgniteTxEntry txEntry : writes) {
             if (txEntry.op() == TRANSFORM)
                 req.addDhtVersion(txEntry.txKey(), null);
         }
@@ -268,6 +269,9 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
 
             GridCacheContext cacheCtx = txEntry.context();
 
+            if (cacheCtx.isNear())
+                hasNearCache = true;
+
             List<ClusterNode> nodes;
 
             if (!cacheCtx.isLocal()) {
@@ -281,9 +285,6 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
             assert !nodes.isEmpty();
 
             ClusterNode primary = nodes.get(0);
-
-            if (cacheCtx.isNear())
-                hasNearCache = true;
 
             GridDistributedTxMapping nodeMapping = mappings.get(primary.id());
 

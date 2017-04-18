@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -151,9 +150,6 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter implements AutoClosea
     @SuppressWarnings("UnusedDeclaration")
     @GridToStringExclude
     private volatile GridNearTxFinishFuture rollbackFut;
-
-    /** Entries to lock on next step of prepare stage. */
-    private Collection<IgniteTxEntry> optimisticLockEntries = Collections.emptyList();
 
     /** True if transaction contains near cache entries mapped to local node. */
     private boolean nearLocallyMapped;
@@ -2426,14 +2422,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter implements AutoClosea
 
     /** {@inheritDoc} */
     @Override public Collection<IgniteTxEntry> optimisticLockEntries() {
-        return optimisticLockEntries;
-    }
-
-    /**
-     * @param optimisticLockEntries Optimistic lock entries.
-     */
-    void optimisticLockEntries(Collection<IgniteTxEntry> optimisticLockEntries) {
-        this.optimisticLockEntries = optimisticLockEntries;
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -2930,18 +2919,16 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter implements AutoClosea
         Collection<GridCacheVersion> committedVers,
         Collection<GridCacheVersion> rolledbackVers)
     {
-        List<IgniteTxEntry> nearEntries = mapping.nearCacheEntries();
-
-        assert nearEntries != null;
+        assert mapping.hasNearCacheEntries() : mapping;
 
         // Process writes, then reads.
-        for (IgniteTxEntry txEntry : nearEntries) {
-            if (CU.writes().apply(txEntry))
+        for (IgniteTxEntry txEntry : mapping.entries()) {
+            if (CU.WRITE_FILTER_NEAR.apply(txEntry))
                 readyNearLock(txEntry, mapping.dhtVersion(), pendingVers, committedVers, rolledbackVers);
         }
 
-        for (IgniteTxEntry txEntry : nearEntries) {
-            if (CU.reads().apply(txEntry))
+        for (IgniteTxEntry txEntry : mapping.entries()) {
+            if (CU.READ_FILTER_NEAR.apply(txEntry))
                 readyNearLock(txEntry, mapping.dhtVersion(), pendingVers, committedVers, rolledbackVers);
         }
     }
@@ -3334,11 +3321,7 @@ public class GridNearTxLocal extends GridDhtTxLocalAdapter implements AutoClosea
             needReturnValue() && implicit());
 
         try {
-            // At this point all the entries passed in must be enlisted in transaction because this is an
-            // optimistic transaction.
-            optimisticLockEntries = (serializable() && optimistic()) ? F.concat(false, writes, reads) : writes;
-
-            userPrepare();
+            userPrepare((serializable() && optimistic()) ? F.concat(false, writes, reads) : writes);
 
             // Make sure to add future before calling prepare on it.
             cctx.mvcc().addFuture(fut);

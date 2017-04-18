@@ -287,6 +287,7 @@ public class IgniteTxHandler {
         final GridNearTxPrepareRequest req,
         boolean locReq
     ) {
+        // Make sure not to provide Near entries to DHT cache.
         if (locReq)
             req.cloneEntries();
 

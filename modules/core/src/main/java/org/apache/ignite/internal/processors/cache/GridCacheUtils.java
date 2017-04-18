@@ -211,14 +211,6 @@ public class GridCacheUtils {
     /** Default transaction config. */
     private static final TransactionConfiguration DEFAULT_TX_CFG = new TransactionConfiguration();
 
-    /** Partition to state transformer. */
-    private static final IgniteClosure PART2STATE =
-        new C1<GridDhtLocalPartition, GridDhtPartitionState>() {
-            @Override public GridDhtPartitionState apply(GridDhtLocalPartition p) {
-                return p.state();
-            }
-        };
-
     /** Empty predicate array. */
     private static final IgnitePredicate[] EMPTY_FILTER = new IgnitePredicate[0];
 
@@ -253,7 +245,7 @@ public class GridCacheUtils {
         }
 
         @Override public String toString() {
-            return "Cache transaction read filter";
+            return "READ_FILTER";
         }
     };
 
@@ -264,7 +256,7 @@ public class GridCacheUtils {
         }
 
         @Override public String toString() {
-            return "Cache transaction read filter";
+            return "READ_FILTER_NEAR";
         }
     };
 
@@ -275,7 +267,7 @@ public class GridCacheUtils {
         }
 
         @Override public String toString() {
-            return "Cache transaction read filter";
+            return "READ_FILTER_COLOCATED";
         }
     };
 
@@ -286,7 +278,7 @@ public class GridCacheUtils {
         }
 
         @Override public String toString() {
-            return "Cache transaction write filter";
+            return "WRITE_FILTER";
         }
     };
 
@@ -297,7 +289,7 @@ public class GridCacheUtils {
         }
 
         @Override public String toString() {
-            return "Cache transaction write filter";
+            return "WRITE_FILTER_NEAR";
         }
     };
 
@@ -308,7 +300,18 @@ public class GridCacheUtils {
         }
 
         @Override public String toString() {
-            return "Cache transaction write filter";
+            return "WRITE_FILTER_COLOCATED";
+        }
+    };
+
+    /** Write filter. */
+    public static final IgnitePredicate FILTER_NEAR_CACHE_ENTRY = new P1<IgniteTxEntry>() {
+        @Override public boolean apply(IgniteTxEntry e) {
+            return e.context().isNear();
+        }
+
+        @Override public String toString() {
+            return "FILTER_NEAR_CACHE_ENTRY";
         }
     };
 
