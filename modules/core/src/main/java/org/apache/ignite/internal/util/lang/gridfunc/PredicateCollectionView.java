@@ -45,6 +45,7 @@ public class PredicateCollectionView<T> extends GridSerializableCollection<T> {
      * @param col Input col that serves as a base for the view.
      * @param preds Optional preds. If preds are not provided - all elements will be in the view.
      */
+    @SafeVarargs
     public PredicateCollectionView(Collection<T> col, IgnitePredicate<? super T>... preds) {
         this.col = col;
         this.preds = preds;
@@ -69,10 +70,5 @@ public class PredicateCollectionView<T> extends GridSerializableCollection<T> {
     /** {@inheritDoc} */
     @Override public boolean isEmpty() {
         return F.isEmpty(preds) ? col.isEmpty() : !iterator().hasNext();
-    }
-
-    /** {@inheritDoc} */
-    @Override public String toString() {
-        return S.toString(PredicateCollectionView.class, this);
     }
 }

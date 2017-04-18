@@ -251,7 +251,7 @@ public abstract class GridNearTxPrepareFutureAdapter extends
             // This step is very important as near and DHT versions grow separately.
             cctx.versions().onReceived(nodeId, res.dhtVersion());
 
-            if (updateMapping) {
+            if (updateMapping && m.hasNearCacheEntries()) {
                 GridCacheVersion writeVer = res.writeVersion();
 
                 if (writeVer == null)
@@ -265,8 +265,7 @@ public abstract class GridNearTxPrepareFutureAdapter extends
                 if (map != null)
                     map.dhtVersion(res.dhtVersion(), writeVer);
 
-                if (m.hasNearCacheEntries())
-                    tx.readyNearLocks(m, res.pending(), res.committedVersions(), res.rolledbackVersions());
+                tx.readyNearLocks(m, res.pending(), res.committedVersions(), res.rolledbackVersions());
             }
         }
     }

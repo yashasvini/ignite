@@ -377,7 +377,7 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
         if (!nearEntries)
             checkOnePhase(txMapping);
 
-        MiniFuture locNearOnlyFut = null;
+        MiniFuture locNearEntriesFut = null;
 
         // Create futures in advance to have all futures when process {@link GridNearTxPrepareResponse#clientRemapVersion}.
         for (GridDistributedTxMapping m : mappings.values()) {
@@ -388,9 +388,9 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
             add(fut);
 
             if (m.primary().isLocal() && m.hasNearCacheEntries() && m.hasColocatedCacheEntries()) {
-                assert locNearOnlyFut == null;
+                assert locNearEntriesFut == null;
 
-                locNearOnlyFut = fut;
+                locNearEntriesFut = fut;
 
                 add(new MiniFuture(this, m, ++miniId));
             }
@@ -408,7 +408,7 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
 
             MiniFuture fut = (MiniFuture)fut0;
 
-            IgniteCheckedException err = prepare(fut, txMapping, locNearOnlyFut);
+            IgniteCheckedException err = prepare(fut, txMapping, locNearEntriesFut);
 
             if (err != null) {
                 while (it.hasNext()) {
@@ -442,11 +442,13 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
 
     /**
      * @param fut Mini future.
+     * @param txMapping
+     * @param locNearEntriesFut
      * @return Prepare error if any.
      */
     @Nullable private IgniteCheckedException prepare(final MiniFuture fut,
         GridDhtTxMapping txMapping,
-        @Nullable MiniFuture locNearOnlyFut) {
+        @Nullable MiniFuture locNearEntriesFut) {
         GridDistributedTxMapping m = fut.mapping();
 
         final ClusterNode primary = m.primary();
@@ -477,16 +479,16 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
 
         // If this is the primary node for the keys.
         if (primary.isLocal()) {
-            if (locNearOnlyFut != null) {
-                boolean nearOnly = fut == locNearOnlyFut;
+            if (locNearEntriesFut != null) {
+                boolean nearEntries = fut == locNearEntriesFut;
 
                 GridNearTxPrepareRequest req = createRequest(txMapping.transactionNodes(),
                     fut,
                     timeout,
-                    nearOnly ? m.nearEntriesReads() : m.colocatedEntriesReads(),
-                    nearOnly ? m.nearEntriesWrites() : m.colocatedEntriesWrites());
+                    nearEntries ? m.nearEntriesReads() : m.colocatedEntriesReads(),
+                    nearEntries ? m.nearEntriesWrites() : m.colocatedEntriesWrites());
 
-                prepareLocal(req, fut, nearOnly, nearOnly);
+                prepareLocal(req, fut, nearEntries);
             }
             else {
                 GridNearTxPrepareRequest req = createRequest(txMapping.transactionNodes(),
@@ -495,7 +497,7 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
                     m.reads(),
                     m.writes());
 
-                prepareLocal(req, fut, m.hasNearCacheEntries(), true);
+                prepareLocal(req, fut, m.hasNearCacheEntries());
             }
         }
         else {
@@ -572,24 +574,20 @@ public class GridNearOptimisticSerializableTxPrepareFuture extends GridNearOptim
 
     /**
      * @param req Request.
-     * @param nearTx Near cache mapping flag.
-     * @param updateMapping Update mapping flag.
+     * @param fut Future.
+     * @param nearEntries {@code True} if prepare near cache entries.
      */
     private void prepareLocal(GridNearTxPrepareRequest req,
         final MiniFuture fut,
-        final boolean nearTx,
-        final boolean updateMapping) {
-        if (nearTx)
-            req.cloneEntries();
-
-        IgniteInternalFuture<GridNearTxPrepareResponse> prepFut = nearTx ?
+        final boolean nearEntries) {
+        IgniteInternalFuture<GridNearTxPrepareResponse> prepFut = nearEntries ?
             cctx.tm().txHandler().prepareNearTx(cctx.localNodeId(), req, true) :
             cctx.tm().txHandler().prepareColocatedTx(tx, req);
 
         prepFut.listen(new CI1<IgniteInternalFuture<GridNearTxPrepareResponse>>() {
             @Override public void apply(IgniteInternalFuture<GridNearTxPrepareResponse> prepFut) {
                 try {
-                    fut.onResult(prepFut.get(), updateMapping);
+                    fut.onResult(prepFut.get(), nearEntries);
                 }
                 catch (IgniteCheckedException e) {
                     fut.onResult(e);

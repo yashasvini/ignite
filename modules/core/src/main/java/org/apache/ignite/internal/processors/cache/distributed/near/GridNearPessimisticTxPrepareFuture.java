@@ -223,28 +223,26 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
      * @param req Request.
      * @param m Mapping.
      * @param miniId Mini future ID.
-     * @param nearTx Near cache mapping flag.
-     * @param updateMapping Update mapping flag.
+     * @param nearEntries {@code True} if prepare near cache entries.
      */
     private void prepareLocal(GridNearTxPrepareRequest req,
         GridDistributedTxMapping m,
         int miniId,
-        final boolean nearTx,
-        final boolean updateMapping) {
+        final boolean nearEntries) {
         final MiniFuture fut = new MiniFuture(m, miniId);
 
         req.miniId(fut.futureId());
 
         add(fut);
 
-        IgniteInternalFuture<GridNearTxPrepareResponse> prepFut = nearTx ?
+        IgniteInternalFuture<GridNearTxPrepareResponse> prepFut = nearEntries ?
             cctx.tm().txHandler().prepareNearTx(cctx.localNodeId(), req, true) :
             cctx.tm().txHandler().prepareColocatedTx(tx, req);
 
         prepFut.listen(new CI1<IgniteInternalFuture<GridNearTxPrepareResponse>>() {
             @Override public void apply(IgniteInternalFuture<GridNearTxPrepareResponse> prepFut) {
                 try {
-                    fut.onResult(prepFut.get(), updateMapping);
+                    fut.onResult(prepFut.get(), nearEntries);
                 }
                 catch (IgniteCheckedException e) {
                     fut.onError(e);
@@ -327,7 +325,7 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
                         m.nearEntriesReads(),
                         m.nearEntriesWrites());
 
-                    prepareLocal(nearReq, m, ++miniId, true, true);
+                    prepareLocal(nearReq, m, ++miniId, true);
 
                     GridNearTxPrepareRequest colocatedReq = createRequest(txNodes,
                         m,
@@ -335,12 +333,12 @@ public class GridNearPessimisticTxPrepareFuture extends GridNearTxPrepareFutureA
                         m.colocatedEntriesReads(),
                         m.colocatedEntriesWrites());
 
-                    prepareLocal(colocatedReq, m, ++miniId, false, false);
+                    prepareLocal(colocatedReq, m, ++miniId, false);
                 }
                 else {
                     GridNearTxPrepareRequest req = createRequest(txNodes, m, timeout, m.reads(), m.writes());
 
-                    prepareLocal(req, m, ++miniId, m.hasNearCacheEntries(), true);
+                    prepareLocal(req, m, ++miniId, m.hasNearCacheEntries());
                 }
             }
             else {

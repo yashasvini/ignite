@@ -43,6 +43,7 @@ public class GridDistributedTxMapping {
 
     /** Entries. */
     @GridToStringInclude
+    // TODO: change to List?
     private Collection<IgniteTxEntry> entries;
 
     /** Explicit lock flag. */
@@ -67,6 +68,23 @@ public class GridDistributedTxMapping {
         this.primary = primary;
 
         entries = new LinkedHashSet<>();
+    }
+
+    public GridDistributedTxMapping copy(boolean colocatedEntriesOnly) {
+        assert !colocatedEntriesOnly || hasColocatedCacheEntries();
+
+        GridDistributedTxMapping res = new GridDistributedTxMapping(primary);
+
+        res.clientFirst = clientFirst;
+        res.explicitLock = explicitLock;
+        res.last = last;
+
+        for (IgniteTxEntry entry : entries) {
+            if (!colocatedEntriesOnly || !entry.context().isNear())
+                res.add(entry);
+        }
+
+        return res;
     }
 
     /**

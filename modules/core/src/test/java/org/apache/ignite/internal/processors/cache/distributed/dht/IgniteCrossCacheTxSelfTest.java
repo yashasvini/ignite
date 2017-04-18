@@ -78,7 +78,7 @@ public class IgniteCrossCacheTxSelfTest extends GridCommonAbstractTest {
      * @return {@code True} if near cache should be enabled.
      */
     protected boolean nearEnabled() {
-        return true;
+        return false;
     }
 
     /** {@inheritDoc} */
