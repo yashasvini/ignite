@@ -177,6 +177,8 @@ public class IgniteOnePhaseCommitInvokeTest extends GridCommonAbstractTest {
 
             checkCacheData(F.asMap(1, expVal), CACHE_NAME);
         }
+
+        checkOnePhaseCommitReturnValuesCleaned(-1);
     }
 
     /**

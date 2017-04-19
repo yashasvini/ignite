@@ -2024,10 +2024,9 @@ public abstract class GridAbstractTest extends TestCase {
     }
 
     /**
-     *
-     * @throws IgniteInterruptedCheckedException
+     * @throws IgniteInterruptedCheckedException If interrupted.
      */
-    public void awaitTopologyChange() throws IgniteInterruptedCheckedException {
+    private void awaitTopologyChange() throws IgniteInterruptedCheckedException {
         for (Ignite g : G.allGrids()) {
             final GridKernalContext ctx = ((IgniteKernal)g).context();
 
